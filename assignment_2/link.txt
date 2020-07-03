@@ -1,0 +1,3 @@
+De assignments zijn te vinden op:
+
+https://github.com/Mathuiss/parallel_distributed_processing
