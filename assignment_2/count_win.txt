@@ -1,0 +1,29 @@
+/*	
+    First the CSV file has te be loaded
+    Loading is done by the PiggyBank storage, the file is separated by the ','
+    After this step, the datatype per property is defined
+*/
+playersCSV = LOAD '/user/maria_dev/diplomacy/players.csv'
+	     USING org.apache.pig.piggybank.storage.CSVExcelStorage(',') AS
+             (game_id: int, 
+                 country: chararray, 
+                 won: int, 
+                 num_supply_centers: int, 
+                 eliminated: int,
+                 start_turn: int, 
+                 end_turn: int);
+                 
+/* Filtering the by the won players, all losing players are not shown */
+filter_result = FILTER playersCSV BY won == 1;
+
+/* The filtered data will be grouped by the country  */
+group_result = GROUP filter_result BY country;
+
+/*  Using FOREACH and the GENERATE FLATTEN with the group_result
+    to remove the nesting in the bag. 
+    Last but not least the counting how much every country has won a game is added
+*/
+count_result = FOREACH group_result GENERATE FLATTEN(group) AS (country), COUNT ($1);
+
+/* Dumping the count_result will show us the counted list by country */
+DUMP count_result;

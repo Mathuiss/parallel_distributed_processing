@@ -1,0 +1,37 @@
+/* 
+    First the CSV file has te be loaded
+    Loading is done by the PiggyBank storage, the file is separated by the ','
+    After this step, the datatype per property is defined
+*/
+ordersCSV = LOAD '/user/maria_dev/diplomacy/orders.csv'
+			USING org.apache.pig.piggybank.storage.CSVExcelStorage(',') AS
+            (game_id: int, 
+               	unit_id: int, 
+               	unit_order: chararray, 
+              	location: chararray, 
+               	target: chararray,
+  				target_dest: chararray, 
+                success: int, 
+                reason: chararray, 
+                turn_num: int);
+                
+/* The data first needs to be filtered by Holland. All other data is useless in this case */
+filter_result = FILTER ordersCSV BY target == 'Holland';
+
+/* The data needs to be grouped by the location	*/
+group_result = GROUP filter_result by (location);
+
+/*
+    using FOREACH and the GENERATE FLATTEN with the group_result
+    to remove the nesting in the bag. Then the filter_result as second column is added.
+    Last but not least the counting is added.	
+*/
+count_result = FOREACH group_result GENERATE FLATTEN(group) AS 
+			   (location), MAX(filter_result.target) AS target,
+               COUNT($1);
+
+/* This is the final step by ordering the result in ascending way */
+final_result = ORDER count_result BY location ASC;
+
+/* Dumping the final_result will show us the ordered list */
+DUMP final_result;

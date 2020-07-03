@@ -1,0 +1,59 @@
+/*
+    In this assessment two CSV files have to be combined.
+    First we load the games CSV file and define it's datatype per property
+*/
+gamesCSV = LOAD '/user/maria_dev/diplomacy/games.csv'
+   		   USING org.apache.pig.piggybank.storage.CSVExcelStorage(',') AS
+           (id: int, 
+           num_turns: int, 
+           num_players: int);
+
+/* Second, we load the players CSV file  and define it's datatype per property */
+playersCSV = LOAD '/user/maria_dev/diplomacy/players.csv'
+			 USING org.apache.pig.piggybank.storage.CSVExcelStorage(',') AS
+             (game_id: int, 
+             country: chararray, 
+             won: int, 
+             num_supply_centers: int, 
+             eliminated: int,
+             start_turn: int, 
+             end_turn: int);
+/* 
+    The two loaded CSV files have to be joinen to each other, just like SQL.
+    The join takes place in the id and the game_id.
+*/
+join_result = JOIN gamesCSV BY id, playersCSV BY game_id;
+
+/* The join_result now has to be filtered by the won games, we don't want to see the losing games */
+filter_result = FILTER join_result BY won == 1;
+
+/* The filter_result now has to be grouped by the country */
+group_result = GROUP filter_result BY (country);
+
+/* 
+    Using FOREACH and the GENERATE FLATTEN with the group_result
+    to remove the nesting in the bag. 
+    For each group the index have to be replaced for the full country name, 
+    otherwise only one letter is displayed.
+    The last step is making a SUM of the number of turns
+*/
+count_result = FOREACH group_result 
+				GENERATE FLATTEN(
+                (group == 'A' ? 'America': 
+                (group == 'E' ? 'England' :
+                (group == 'F' ? 'France' :
+                (group == 'G' ? 'Greece' : 
+                (group == 'I' ? 'Italy' :
+                (group == 'R' ? 'Russia' :
+                (group == 'T' ? 'Turkey' : group)
+                ))))))) AS country,
+                SUM(filter_result.num_turns) AS number_of_turns;
+
+/* Ordering the counted result DESC will result in the highest number of turns at the top. */
+order_result = ORDER count_result BY number_of_turns DESC;
+
+/* The highest 10 must be shown, so a limit is necessery */
+limit_result = LIMIT order_result 10;
+
+/* Dumping the limit_result will show us the end result */
+DUMP limit_result;
